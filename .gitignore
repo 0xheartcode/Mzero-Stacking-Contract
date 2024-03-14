@@ -1,7 +1,7 @@
 # Compiler files
 cache/
 out/
-
+broadcast/
 # Ignores development broadcast logs
 !/broadcast
 /broadcast/*/31337/
@@ -9,6 +9,13 @@ out/
 
 # Docs
 docs/
+.vscode/
+.idea/
 
 # Dotenv file
 .env
+
+
+# System files
+.DS_Store
+Thumbs.db
