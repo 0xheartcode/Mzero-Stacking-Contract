@@ -34,7 +34,8 @@ contract StakingContractTest is Test {
         }
         
         // Deploy the StakingContract with the BasicToken as the staking/reward token
-        stakingContract = new StakingContract(basicToken, 1e18 /* Reward Rate */, 30 days /* Emission Duration */);
+        uint256 currentTime = block.timestamp;
+        stakingContract = new StakingContract(basicToken, 1e18 /* Reward Rate */, currentTime /* Emission start */, 30 days /* Emission Duration */);
         basicToken.transfer(address(stakingContract), 10_000_000 * 1e18);
 
         // Approve the StakingContract to spend staker's tokens

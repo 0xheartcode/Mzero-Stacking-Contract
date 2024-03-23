@@ -41,10 +41,10 @@ contract StakingContract is ReentrancyGuard, Ownable {
         _;
     }
 
-    constructor(IERC20 _basicToken, uint256 _rewardRate, uint256 _emissionDuration) Ownable(msg.sender) {
+    constructor(IERC20 _basicToken, uint256 _rewardRate, uint256 _emissionStart, uint256 _emissionDuration) Ownable(msg.sender) {
         basicToken = _basicToken;
         rewardRate = _rewardRate;
-        emissionStart = block.timestamp;
+        emissionStart = _emissionStart;
         emissionEnd = emissionStart + _emissionDuration;
     }
 
@@ -67,9 +67,11 @@ contract StakingContract is ReentrancyGuard, Ownable {
         if (staker.unstakeInitTime != 0 && staker.unstakeInitTime < lastTimeRewardApplicable) {
             lastTimeRewardApplicable = staker.unstakeInitTime;
         }
+        uint256 rewardPerTokenUpToLastApplicable = rewardPerTokenStored + (
+            (lastTimeRewardApplicable - lastUpdateTime) * rewardRate * 1e18 / totalStaked
+        );
         return (
-            staker.amountStaked *
-            (rewardPerToken() - staker.rewardDebt) / 1e18
+            staker.amountStaked * (rewardPerTokenUpToLastApplicable - staker.rewardDebt) / 1e18
         ) + staker.rewards;
     }
 
@@ -121,11 +123,10 @@ contract StakingContract is ReentrancyGuard, Ownable {
 
     function claimReward() external nonReentrant updateReward(msg.sender) {
         uint256 reward = stakers[msg.sender].rewards;
-        if (reward > 0) {
-            stakers[msg.sender].rewards = 0;
-            require(basicToken.transfer(msg.sender, reward), "Reward transfer failed");
-            emit RewardPaid(msg.sender, reward);
-        }
+        require(reward > 0, "No rewards to claim");
+        stakers[msg.sender].rewards = 0;
+        require(basicToken.transfer(msg.sender, reward), "Reward transfer failed");
+        emit RewardPaid(msg.sender, reward);
     }
 
     function setUnstakeFeePercent(uint256 _newFee) external onlyOwner {
