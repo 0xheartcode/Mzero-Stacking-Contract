@@ -9,7 +9,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
     IERC20 public basicToken;
 
     uint256 public totalStaked;
-    uint256 public rewardRate;  // The rate of reward per second.
+    uint256 public rewardRate;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
     uint256 public unstakeTimeLock = 15 days; // Default time lock for unstaking
@@ -21,7 +21,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
         uint256 amountStaked;
         uint256 rewardDebt;
         uint256 rewards;
-        uint256 unstakeInitTime; // Time when the user initiated unstaking
+        uint256 unstakeInitTime; 
     }
 
     mapping(address => Staker) public stakers;
@@ -63,15 +63,19 @@ contract StakingContract is ReentrancyGuard, Ownable {
 
     function earned(address account) public view returns (uint256) {
         Staker storage staker = stakers[account];
-        uint256 lastTimeRewardApplicable = lastApplicableTime();
+        uint256 lastEffectiveTime = lastApplicableTime();
+        uint256 lastTimeRewardApplicable = lastEffectiveTime;
         if (staker.unstakeInitTime != 0 && staker.unstakeInitTime < lastTimeRewardApplicable) {
             lastTimeRewardApplicable = staker.unstakeInitTime;
         }
-        uint256 rewardPerTokenUpToLastApplicable = rewardPerTokenStored + (
-            (lastTimeRewardApplicable - lastUpdateTime) * rewardRate * 1e18 / totalStaked
+            if (totalStaked == 0) {
+        return 0; // Return 0 early if no tokens are staked
+    }
+        uint256 rewardApplicable = rewardPerTokenStored + (
+            (lastEffectiveTime - lastTimeRewardApplicable) * rewardRate * 1e18 / totalStaked
         );
         return (
-            staker.amountStaked * (rewardPerTokenUpToLastApplicable - staker.rewardDebt) / 1e18
+            staker.amountStaked * (rewardApplicable - staker.rewardDebt) / 1e18
         ) + staker.rewards;
     }
 
@@ -116,8 +120,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
             require(basicToken.transfer(msg.sender, amountAfterFee), "Unstake transfer failed");
         }
 
-        delete stakers[msg.sender]; // Cleanup staker info
-
+        delete stakers[msg.sender]; 
         emit Unstaked(msg.sender, amount);
     }
 

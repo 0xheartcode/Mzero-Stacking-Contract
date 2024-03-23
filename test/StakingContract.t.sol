@@ -49,7 +49,7 @@ contract StakingContractTest is Test {
     }
 
 
-    function testStake() public {
+    function testStakeAmount() public {
         // Simulate staker1 staking tokens
         vm.startPrank(staker1);
         stakingContract.stake(100 * 1e18);
@@ -61,7 +61,14 @@ contract StakingContractTest is Test {
         stakingContract.stake(1 * 1e18);
         stakingContract.stake(2 * 1e18);
         stakingContract.stake(2 * 1e18);
+        vm.stopPrank();
 
+        vm.startPrank(staker2);
+        stakingContract.stake(1 * 1e18);
+        stakingContract.stake(2 * 1e18);
+        (uint256 amountStakedStaker2,,,) = stakingContract.stakers(staker2);
+        assertEq(amountStakedStaker2, 3 * 1e18);
+        
         (uint256 amountStakedNext,,,) = stakingContract.stakers(staker1);
         assertEq(amountStakedNext, 105 * 1e18);
 
@@ -75,7 +82,7 @@ contract StakingContractTest is Test {
         stakingContract.stake(100 * 1e18);
 
         // Warp 1 week into the future
-        vm.warp(block.timestamp + 1 weeks);
+        vm.warp(block.timestamp + 1 days);
 
         // Claim rewards
         stakingContract.claimReward();
@@ -95,18 +102,23 @@ contract StakingContractTest is Test {
 
         // Initiate unstake
         stakingContract.initiateUnstake();
-        //(,,uint256 unstakeInitTime,) = stakingContract.stakers(staker1);
-        //assertGt(unstakeInitTime, 0);
-        
+        (,,,uint256 unstakeInitTime) = stakingContract.stakers(staker1);
+        assertEq(unstakeInitTime, block.timestamp);
+ 
         // Fail: early unstake attempt 
         vm.expectRevert("Timelock not yet passed");
         stakingContract.completeUnstake();
-        
+
+        vm.expectRevert("Unstake already initiated");
+        stakingContract.initiateUnstake();
+        vm.expectRevert("Timelock not yet passed");
+        stakingContract.completeUnstake();
+
         // Fail: early unstake attempt 
         vm.warp(block.timestamp + 1 days);
         vm.expectRevert("Timelock not yet passed");
         stakingContract.completeUnstake();
-
+        
         // Fail: early unstake attempt 
         vm.warp(block.timestamp + 5 days);
         vm.expectRevert("Timelock not yet passed");
@@ -161,10 +173,10 @@ contract StakingContractTest is Test {
         stakingContract.completeUnstake();
         vm.stopPrank();
         vm.startPrank(staker3);
-        (,,uint256 unstakeInitTimePretUnstakeStaker3,) = stakingContract.stakers(staker3);
+        (,,,uint256 unstakeInitTimePretUnstakeStaker3) = stakingContract.stakers(staker3);
         assertGe(unstakeInitTimePretUnstakeStaker3, 0);
         stakingContract.completeUnstake();
-        (,,uint256 unstakeInitTimePostUnstakeStaker3,) = stakingContract.stakers(staker3);
+        (,,,uint256 unstakeInitTimePostUnstakeStaker3) = stakingContract.stakers(staker3);
         assertEq(unstakeInitTimePostUnstakeStaker3, 0);
 
         // @dev Unstake and change unstake time from dev:
@@ -178,7 +190,7 @@ contract StakingContractTest is Test {
     }
 
     /// @notice Test admin change Fees
-    function testAdminChangeUnstakeFees() public {
+    function testAdminChangeUnstakeFees() private {
         //vm.startPrank(deployer);
         stakingContract.setUnstakeFeePercent(100); 
         assertEq(stakingContract.unstakeFeePercent(), 100, "Fee not updated correctly to 1%.");
@@ -221,6 +233,5 @@ contract StakingContractTest is Test {
         stakingContract.setUnstakeTimeLock(1 days);
         vm.stopPrank();
     }
-    // Add more tests here...
 }
 
