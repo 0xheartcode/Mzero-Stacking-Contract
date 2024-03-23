@@ -61,12 +61,6 @@ contract StakingContract is ReentrancyGuard, Ownable {
         );
     }
 
-    // function earned(address account) public view returns (uint256) {
-        //return (
-        //    stakers[account].amountStaked * (rewardPerToken() - stakers[account].rewardDebt) / 1e18
-        //) + stakers[account].rewards;
-   // }
-
     function earned(address account) public view returns (uint256) {
         Staker storage staker = stakers[account];
         uint256 lastTimeRewardApplicable = lastApplicableTime();
@@ -153,6 +147,8 @@ contract StakingContract is ReentrancyGuard, Ownable {
         }
     }
 
+    // TODO remove this function
+    /// @dev only temporary function to change fees during tests
     // Optionally, a function to allow the owner to update emission details
     function setEmissionDetails(uint256 _rewardRate, uint256 _emissionDuration) external onlyOwner {
         rewardRate = _rewardRate;
