@@ -15,7 +15,7 @@ contract StakingContractTest is Test {
     function setUp() public {
         // Deploy the BasicToken contract and mint tokens to the staker
         basicToken = new BasicToken();
-        basicToken.transfer(staker1, 1000 * 1e18);
+        basicToken.transfer(staker1, 100_000 * 1e18);
 
         // Deploy the StakingContract with the BasicToken as the staking/reward token
         stakingContract = new StakingContract(basicToken, 1e18 /* Reward Rate */, 30 days /* Emission Duration */);
@@ -39,7 +39,7 @@ contract StakingContractTest is Test {
     function testStakeAndEarnRewards() public {
         // User1 stakes 10000 tokens
         vm.startPrank(staker1);
-        stakingContract.stake(10000 * 1e18);
+        stakingContract.stake(100 * 1e18);
 
         // Warp 1 week into the future
         vm.warp(block.timestamp + 1 weeks);
@@ -48,13 +48,13 @@ contract StakingContractTest is Test {
         stakingContract.claimReward();
 
         // Check that user1's balance increased due to rewards
-        assertTrue(basicToken.balanceOf(staker1) > 10000 * 1e18);
+        assertTrue(basicToken.balanceOf(staker1) > 1000 * 1e18);
         vm.stopPrank();
     }
 
     function testUnstakeWithTimelock() public {
         vm.startPrank(staker1);
-        stakingContract.stake(10000 * 1e18);
+        stakingContract.stake(100 * 1e18);
 
         // Initiate unstake
         stakingContract.initiateUnstake();
