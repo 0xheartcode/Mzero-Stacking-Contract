@@ -267,7 +267,7 @@ contract StakingContractTest is Test {
     
     function testCompleteUnstakeWithEmissions() public {
         uint256 stakeAmountUser1 = 1e18; // 1 token for user 1
-        uint256 stakeAmountUser2 = 20e18; // 2 tokens for user 2
+        uint256 stakeAmountUser2 = 2e18; // 2 tokens for user 2
         uint256 stakeAmountUser3 = 1e18; // 1 token for user 3
         uint256 unstakingFeePercentage = 200; // 2% unstaking fee
         uint256 unstakingDelay = 15 days; // Unstaking delay
