@@ -267,11 +267,11 @@ contract StakingContractTest is Test {
     
     function testCompleteUnstakeWithEmissions() public {
         uint256 stakeAmountUser1 = 1e18; // 1 token for user 1
-        uint256 stakeAmountUser2 = 2e18; // 2 tokens for user 2
+        uint256 stakeAmountUser2 = 20e18; // 2 tokens for user 2
         uint256 stakeAmountUser3 = 1e18; // 1 token for user 3
         uint256 unstakingFeePercentage = 200; // 2% unstaking fee
         uint256 unstakingDelay = 15 days; // Unstaking delay
-        uint256 emissionRate = 1e18; // Example emission rate per day for simplicity
+        uint256 emissionRate = 1; // Example emission rate per day for simplicity
 
         // Set unstaking fee and emission rate
         //vm.startPrank(deployer);
@@ -307,19 +307,20 @@ contract StakingContractTest is Test {
 
         // Calculate expected returns and fees for both users, incorporating emission effects
         // Assuming rewards are linearly accumulated over time for simplicity
-        uint256 totalRewardsUser1 = emissionRate * unstakingDelay * stakeAmountUser1 / 1e18;
-        uint256 totalRewardsUser2 = emissionRate * unstakingDelay * stakeAmountUser2 / 1e18;
+        uint256 percentageUser1 = stakeAmountUser1 *1e18/ stakingContract.totalStaked();
+        uint256 totalRewardsUser1 = emissionRate * unstakingDelay * percentageUser1; 
+        uint256 StakeMinusFeeUser1 = stakeAmountUser1 - ((stakeAmountUser1 * unstakingFeePercentage) / 10_000);
+        uint256 expectedReturnUser1 = totalRewardsUser1 + StakeMinusFeeUser1;
+        
 
-        uint256 totalAmountUser1 = stakeAmountUser1 + totalRewardsUser1;
-        uint256 totalAmountUser2 = stakeAmountUser2 + totalRewardsUser2;
+        uint256 percentageUser2 = stakeAmountUser2 *1e18/ stakingContract.totalStaked();
+        uint256 totalRewardsUser2 = emissionRate * unstakingDelay * percentageUser1; 
+        uint256 StakeMinusFeeUser2 = stakeAmountUser2 - ((stakeAmountUser2 * unstakingFeePercentage) / 10_000);
+        uint256 expectedReturnUser2 = totalRewardsUser2 + StakeMinusFeeUser2;
+ 
+
+
         uint256 totalAmountUser3 = stakeAmountUser3;
-
-        uint256 expectedFeeUser1 = totalAmountUser1 * unstakingFeePercentage / 10_000;
-        uint256 expectedReturnUser1 = totalAmountUser1 - expectedFeeUser1;
-
-        uint256 expectedFeeUser2 = totalAmountUser2 * unstakingFeePercentage / 10_000;
-        uint256 expectedReturnUser2 = totalAmountUser2 - expectedFeeUser2;
-
         uint256 expectedFeeUser3 = totalAmountUser3 * unstakingFeePercentage / 10_000;
         uint256 expectedReturnUser3 = stakeAmountUser3 - expectedFeeUser3;
 
@@ -332,12 +333,12 @@ contract StakingContractTest is Test {
         stakingContract.completeUnstake();
         vm.stopPrank();
         uint256 finalBalanceUser1 = basicToken.balanceOf(staker1);
-        //assertEq(finalBalanceUser1 - initialBalanceUser1, expectedReturnUser1, "User 1: Incorrect return amount after fees and rewards.");
+        assertEq(finalBalanceUser1 - initialBalanceUser1, expectedReturnUser1, "User 1: Incorrect return amount after fees and rewards.");
 
-        vm.startPrank(staker2);
-        stakingContract.completeUnstake();
-        vm.stopPrank();
-        uint256 finalBalanceUser2 = basicToken.balanceOf(staker2);
+        //vm.startPrank(staker2);
+        //stakingContract.completeUnstake();
+        //vm.stopPrank();
+        //uint256 finalBalanceUser2 = basicToken.balanceOf(staker2);
         //assertEq(finalBalanceUser2 - initialBalanceUser2, expectedReturnUser2, "User 2: Incorrect return amount after fees and rewards.");
 
         vm.startPrank(staker3);

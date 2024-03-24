@@ -64,23 +64,16 @@ contract StakingContract is ReentrancyGuard, Ownable {
 
     function earned(address account) public view returns (uint256) {
         Staker storage staker = stakers[account];
-        uint256 lastEffectiveTime = lastApplicableTime();
-        uint256 lastTimeRewardApplicable = lastEffectiveTime;
-
-        // Stop rewards once unstake is initiated
+        uint256 lastTimeRewardApplicable = lastApplicableTime();
         if (staker.unstakeInitTime != 0 && staker.unstakeInitTime < lastTimeRewardApplicable) {
-            lastTimeRewardApplicable = staker.unstakeInitTime; 
+            lastTimeRewardApplicable = staker.unstakeInitTime;
         }
-            if (totalStaked == 0) {
-        return 0; // Return 0 early if no tokens are staked
-    }
-        uint256 rewardApplicable = rewardPerTokenStored + (
-            (lastEffectiveTime - lastTimeRewardApplicable) * rewardRate * 1e18 / totalStaked
-        );
         return (
-            staker.amountStaked * (rewardApplicable - staker.rewardDebt) / 1e18
+            staker.amountStaked *
+            (rewardPerToken() - staker.rewardDebt) / 1e18
         ) + staker.rewards;
     }
+
 
     function stake(uint256 _amount) external nonReentrant updateReward(msg.sender) {
         require(_amount > 0, "Cannot stake 0");
