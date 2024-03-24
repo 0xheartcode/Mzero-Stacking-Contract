@@ -96,6 +96,10 @@ contract StakingContractTest is Test {
     /// @notice Test to measure the correct date of unstakes
     function testUnstakeWithTimelockDateCheck() public {
         vm.startPrank(staker1);
+        stakingContract.stake(1 * 1e18);
+        // Should fail, Cannot completeUnstake without initialUnstake first
+        vm.expectRevert("Unstake not initiated");
+        stakingContract.completeUnstake();
         
         // @dev single user linear unstake tests
         stakingContract.stake(100 * 1e18);
@@ -114,6 +118,7 @@ contract StakingContractTest is Test {
         vm.expectRevert("Timelock not yet passed");
         stakingContract.completeUnstake();
 
+        console.log("Previous block timestamp:", block.timestamp);
         // Fail: early unstake attempt 
         vm.warp(block.timestamp + 1 days);
         vm.expectRevert("Timelock not yet passed");
