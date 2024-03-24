@@ -154,10 +154,18 @@ contract StakingContract is ReentrancyGuard, Ownable {
         }
     }
 
+    function updateMyRewards() external {
+        rewardPerTokenStored = rewardPerToken();
+        lastUpdateTime = lastApplicableTime();
+        if (msg.sender != address(0)) {
+            stakers[msg.sender].rewards = earned(msg.sender);
+            stakers[msg.sender].rewardDebt = rewardPerTokenStored;
+        }
+    }
     // Allow owner to update emission details
     function setEmissionDetails(uint256 _rewardRate, uint256 _emissionDuration) external onlyOwner {
         rewardRate = _rewardRate;
-        emissionEnd = block.timestamp + _emissionDuration;
+        emissionEnd = emissionEnd + _emissionDuration; //extends the duration. Does not reduce it
         emit EmissionsUpdated(rewardRate, emissionEnd);
     }
 }
