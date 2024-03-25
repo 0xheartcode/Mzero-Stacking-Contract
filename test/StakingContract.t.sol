@@ -55,7 +55,7 @@ contract StakingContractTest is Test {
         stakingContract.stake(100 * 1e18);
 
         // Check if the staked amount is correctly recorded
-        (uint256 amountStaked,,,) = stakingContract.stakers(staker1);
+        (uint256 amountStaked,,,,) = stakingContract.stakers(staker1);
         assertEq(amountStaked, 100 * 1e18);
 
         stakingContract.stake(1 * 1e18);
@@ -66,10 +66,10 @@ contract StakingContractTest is Test {
         vm.startPrank(staker2);
         stakingContract.stake(1 * 1e18);
         stakingContract.stake(2 * 1e18);
-        (uint256 amountStakedStaker2,,,) = stakingContract.stakers(staker2);
+        (uint256 amountStakedStaker2,,,,) = stakingContract.stakers(staker2);
         assertEq(amountStakedStaker2, 3 * 1e18);
         
-        (uint256 amountStakedNext,,,) = stakingContract.stakers(staker1);
+        (uint256 amountStakedNext,,,,) = stakingContract.stakers(staker1);
         assertEq(amountStakedNext, 105 * 1e18);
 
         vm.stopPrank();
@@ -125,14 +125,9 @@ contract StakingContractTest is Test {
 
         // Calculate expected rewards
         uint256 expectedRewards = rewardRate * stakingDuration; // Adjust if necessary for your reward calculation logic
-
-        vm.startPrank(staker1);
-        stakingContract.updateMyRewards();
-        vm.stopPrank();
+        
         // Verify the earned rewards for staker1
         uint256 actualEarned = stakingContract.earned(staker1);
-        (,,uint256 actualRewardNow,) = stakingContract.stakers(staker1);
-        assertEq(actualRewardNow, expectedRewards, "Struct rewards for single staker do not match expected.");
         assertEq(actualEarned, expectedRewards, "Earned rewards for single staker do not match expected.");
 
         uint256 initialBalance = basicToken.balanceOf(staker1);
@@ -173,7 +168,6 @@ contract StakingContractTest is Test {
         // Verify the earned rewards for each staker
         for (uint256 i = 0; i < stakers_mul.length; i++) {
             vm.prank(stakers_mul[i]);
-            stakingContract.updateMyRewards();
             uint256 actualEarned = stakingContract.earned(stakers_mul[i]);
             assertEq(actualEarned, expectedRewardsPerStaker, "Earned rewards for staker do not match expected.");
         
@@ -186,7 +180,6 @@ contract StakingContractTest is Test {
         vm.warp(block.timestamp + stakingDuration);
         for (uint256 i = 0; i < stakers_mul.length; i++) {
             vm.prank(stakers_mul[i]);
-            stakingContract.updateMyRewards();
             uint256 actualEarned = stakingContract.earned(stakers_mul[i]);
             assertEq(actualEarned, expectedRewardsPerStaker, "Earned rewards for staker do not match expected.");
         
@@ -232,6 +225,7 @@ contract StakingContractTest is Test {
         uint256 unstakingDuration = 1 days; // Duration after initiating unstake
 
         // Stake tokens by staker1
+        console.log("Stake 1eth =0.0=");
         vm.startPrank(staker1);
         stakingContract.stake(stakeAmount);
         vm.stopPrank();
@@ -248,8 +242,8 @@ contract StakingContractTest is Test {
         vm.stopPrank();
 
         // Calculate expected rewards at the point of unstaking
-        uint256 expectedRewardsAtUnstake = rewardRate * stakingDuration; // Adjust if necessary for your reward calculation logic
-
+        //uint256 expectedRewardsAtUnstake = rewardRate * stakingDuration; // Adjust if necessary for your reward calculation logic
+        console.log("claimReward #1:");
         vm.startPrank(staker1);
         stakingContract.claimReward();
         vm.stopPrank();
@@ -257,7 +251,9 @@ contract StakingContractTest is Test {
         uint256 initialBalance = basicToken.balanceOf(staker1);
         vm.warp(block.timestamp + unstakingDuration);
         
+        console.log("claimReward #2:");
         vm.startPrank(staker1);
+        vm.expectRevert("No rewards to claim");
         stakingContract.claimReward();
         vm.stopPrank();
 
@@ -267,7 +263,7 @@ contract StakingContractTest is Test {
     
     function testCompleteUnstakeWithEmissions() public {
         uint256 stakeAmountUser1 = 1e18; // 1 token for user 1
-        uint256 stakeAmountUser2 = 2e18; // 2 tokens for user 2
+        uint256 stakeAmountUser2 = 3e18; // 2 tokens for user 2
         uint256 stakeAmountUser3 = 1e18; // 1 token for user 3
         uint256 unstakingFeePercentage = 200; // 2% unstaking fee
         uint256 unstakingDelay = 15 days; // Unstaking delay
@@ -314,7 +310,7 @@ contract StakingContractTest is Test {
         
 
         uint256 percentageUser2 = stakeAmountUser2 *1e18/ stakingContract.totalStaked();
-        uint256 totalRewardsUser2 = emissionRate * unstakingDelay * percentageUser1; 
+        uint256 totalRewardsUser2 = emissionRate * unstakingDelay * percentageUser2; 
         uint256 StakeMinusFeeUser2 = stakeAmountUser2 - ((stakeAmountUser2 * unstakingFeePercentage) / 10_000);
         uint256 expectedReturnUser2 = totalRewardsUser2 + StakeMinusFeeUser2;
  
@@ -335,11 +331,11 @@ contract StakingContractTest is Test {
         uint256 finalBalanceUser1 = basicToken.balanceOf(staker1);
         assertEq(finalBalanceUser1 - initialBalanceUser1, expectedReturnUser1, "User 1: Incorrect return amount after fees and rewards.");
 
-        //vm.startPrank(staker2);
-        //stakingContract.completeUnstake();
-        //vm.stopPrank();
-        //uint256 finalBalanceUser2 = basicToken.balanceOf(staker2);
-        //assertEq(finalBalanceUser2 - initialBalanceUser2, expectedReturnUser2, "User 2: Incorrect return amount after fees and rewards.");
+        vm.startPrank(staker2);
+        stakingContract.completeUnstake();
+        vm.stopPrank();
+        uint256 finalBalanceUser2 = basicToken.balanceOf(staker2);
+        assertEq(finalBalanceUser2 - initialBalanceUser2, expectedReturnUser2, "User 2: Incorrect return amount after fees and rewards.");
 
         vm.startPrank(staker3);
         stakingContract.completeUnstake();
@@ -363,7 +359,7 @@ contract StakingContractTest is Test {
 
         // Initiate unstake
         stakingContract.initiateUnstake();
-        (,,,uint256 unstakeInitTime) = stakingContract.stakers(staker1);
+        (,,,uint256 unstakeInitTime,) = stakingContract.stakers(staker1);
         assertEq(unstakeInitTime, block.timestamp);
  
         // Fail: early unstake attempt 
@@ -434,10 +430,10 @@ contract StakingContractTest is Test {
         stakingContract.completeUnstake();
         vm.stopPrank();
         vm.startPrank(staker3);
-        (,,,uint256 unstakeInitTimePretUnstakeStaker3) = stakingContract.stakers(staker3);
+        (,,,uint256 unstakeInitTimePretUnstakeStaker3,) = stakingContract.stakers(staker3);
         assertGe(unstakeInitTimePretUnstakeStaker3, 0);
         stakingContract.completeUnstake();
-        (,,,uint256 unstakeInitTimePostUnstakeStaker3) = stakingContract.stakers(staker3);
+        (,,,uint256 unstakeInitTimePostUnstakeStaker3,) = stakingContract.stakers(staker3);
         assertEq(unstakeInitTimePostUnstakeStaker3, 0);
 
         // @dev Unstake and change unstake time from dev:
@@ -503,30 +499,26 @@ contract StakingContractTest is Test {
     function testAdminChangeEmissionsAndEnd() public {
         //vm.startPrank(deployer);
         uint256 _emissionEnd1 = stakingContract.emissionEnd();
-        stakingContract.setEmissionDetails(1, 10 days);
+        stakingContract.setEmissionDetails(10 days);
         assertEq(stakingContract.emissionEnd(), _emissionEnd1 + 10 days, "EmissionEnd not updated correctly.");
-        assertEq(stakingContract.rewardRate(), 1, "rewardRate not updated correctly.");
 
         _emissionEnd1 = stakingContract.emissionEnd();
-        stakingContract.setEmissionDetails(0, 1);
+        stakingContract.setEmissionDetails(1);
         assertEq(stakingContract.emissionEnd(), _emissionEnd1 + 1, "EmissionEnd not updated correctly.");
-        assertEq(stakingContract.rewardRate(), 0, "rewardRate not updated correctly.");
 
         _emissionEnd1 = stakingContract.emissionEnd();
-        stakingContract.setEmissionDetails(1000, 0);
+        stakingContract.setEmissionDetails(0);
         assertEq(stakingContract.emissionEnd(), _emissionEnd1, "EmissionEnd not updated correctly.");
-        assertEq(stakingContract.rewardRate(), 1000, "rewardRate not updated correctly.");
 
         _emissionEnd1 = stakingContract.emissionEnd();
-        stakingContract.setEmissionDetails(1, 15 days);
+        stakingContract.setEmissionDetails(15 days);
         assertEq(stakingContract.emissionEnd(), _emissionEnd1 + 15 days, "EmissionEnd not updated correctly.");
-        assertEq(stakingContract.rewardRate(), 1, "rewardRate not updated correctly.");
         //vm.stopPrank();
 
         // Check if it reverts on non owner calls.
         vm.startPrank(staker1);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector,staker1));
-        stakingContract.setEmissionDetails(1, 20);
+        stakingContract.setEmissionDetails(20);
         vm.stopPrank();
     }
    

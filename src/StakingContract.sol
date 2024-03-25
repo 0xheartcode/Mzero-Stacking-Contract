@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "forge-std/console.sol";
 
 contract StakingContract is ReentrancyGuard, Ownable {
     IERC20 public basicToken;
@@ -22,6 +23,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
         uint256 rewardDebt;
         uint256 rewards;
         uint256 unstakeInitTime; 
+        bool claimedAfterUnstake; 
     }
 
     mapping(address => Staker) public stakers;
@@ -30,7 +32,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
     event Staked(address indexed user, uint256 amount);
     event Unstaked(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
-    event EmissionsUpdated(uint256 newRewardRate, uint256 newEmissionEnd);
+    event EmissionsUpdated(uint256 newEmissionEnd);
 
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
@@ -64,9 +66,8 @@ contract StakingContract is ReentrancyGuard, Ownable {
 
     function earned(address account) public view returns (uint256) {
         Staker storage staker = stakers[account];
-        uint256 lastTimeRewardApplicable = lastApplicableTime();
-        if (staker.unstakeInitTime != 0 && staker.unstakeInitTime < lastTimeRewardApplicable) {
-            lastTimeRewardApplicable = staker.unstakeInitTime;
+        if (staker.claimedAfterUnstake == true) {
+                return 0;
         }
         return (
             staker.amountStaked *
@@ -124,6 +125,9 @@ contract StakingContract is ReentrancyGuard, Ownable {
         uint256 reward = stakers[msg.sender].rewards;
         require(reward > 0, "No rewards to claim");
         stakers[msg.sender].rewards = 0;
+        if (stakers[msg.sender].unstakeInitTime != 0){
+            stakers[msg.sender].claimedAfterUnstake = true;
+        }
         require(basicToken.transfer(msg.sender, reward), "Reward transfer failed");
         emit RewardPaid(msg.sender, reward);
     }
@@ -147,18 +151,9 @@ contract StakingContract is ReentrancyGuard, Ownable {
         }
     }
 
-    function updateMyRewards() external {
-        rewardPerTokenStored = rewardPerToken();
-        lastUpdateTime = lastApplicableTime();
-        if (msg.sender != address(0)) {
-            stakers[msg.sender].rewards = earned(msg.sender);
-            stakers[msg.sender].rewardDebt = rewardPerTokenStored;
-        }
-    }
-    // Allow owner to update emission details
-    function setEmissionDetails(uint256 _rewardRate, uint256 _emissionDuration) external onlyOwner {
-        rewardRate = _rewardRate;
+    // Allow owner to update emission enddate
+    function setEmissionDetails(uint256 _emissionDuration) external onlyOwner {
         emissionEnd = emissionEnd + _emissionDuration; //extends the duration. Does not reduce it
-        emit EmissionsUpdated(rewardRate, emissionEnd);
+        emit EmissionsUpdated(emissionEnd);
     }
 }
