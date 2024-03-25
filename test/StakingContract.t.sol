@@ -220,7 +220,7 @@ contract StakingContractTest is Test {
 
     function testUnstakeStopsRewardsAccumulation() public {
         uint256 stakeAmount = 1e18; // 1 token, for simplicity, assuming 18 decimal places
-        uint256 rewardRate = 1e18; // Reward rate as per your setup
+        //uint256 rewardRate = 1e18; // Reward rate as per your setup
         uint256 stakingDuration = 1 days; // Staking period for the test
         uint256 unstakingDuration = 1 days; // Duration after initiating unstake
 
@@ -290,6 +290,7 @@ contract StakingContractTest is Test {
         // User 3 stakes
         vm.startPrank(staker3);
         stakingContract.stake(stakeAmountUser3);
+        vm.warp(block.timestamp);
         stakingContract.initiateUnstake();
         vm.stopPrank();
 
@@ -298,6 +299,7 @@ contract StakingContractTest is Test {
         vm.warp(block.timestamp + unstakingDelay);
 
         vm.startPrank(staker3);
+        stakingContract.earned(staker3);
         stakingContract.claimReward();
         vm.stopPrank();
 
@@ -310,7 +312,7 @@ contract StakingContractTest is Test {
         
 
         uint256 percentageUser2 = stakeAmountUser2 *1e18/ stakingContract.totalStaked();
-        uint256 totalRewardsUser2 = emissionRate * unstakingDelay * percentageUser2; 
+        uint256 totalRewardsUser2 = emissionRate * (unstakingDelay) * percentageUser2; 
         uint256 StakeMinusFeeUser2 = stakeAmountUser2 - ((stakeAmountUser2 * unstakingFeePercentage) / 10_000);
         uint256 expectedReturnUser2 = totalRewardsUser2 + StakeMinusFeeUser2;
  
