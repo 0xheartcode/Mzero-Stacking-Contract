@@ -307,15 +307,11 @@ function testCompleteUnstakeWithEmissionsFeesWithdraw() public {
         // Calculate expected returns and fees for both users, incorporating emission effects
         // Assuming rewards are linearly accumulated over time for simplicity
         uint256 percentageUser1 = stakeAmountUser1 *1e18/ stakingContract.totalStaked();
-        uint256 totalRewardsUser1 = emissionRate * unstakingDelay * percentageUser1; 
         uint256 feeAmountUser1 = ((stakeAmountUser1 * unstakingFeePercentage) / 10_000);
-        uint256 StakeMinusFeeUser1 = stakeAmountUser1 - ((stakeAmountUser1 * unstakingFeePercentage) / 10_000);
         
 
         uint256 percentageUser2 = stakeAmountUser2 *1e18/ stakingContract.totalStaked();
-        uint256 totalRewardsUser2 = emissionRate * (unstakingDelay) * percentageUser2; 
         uint256 feeAmountUser2 = ((stakeAmountUser2 * unstakingFeePercentage) / 10_000);
-        uint256 StakeMinusFeeUser2 = stakeAmountUser2 - ((stakeAmountUser2 * unstakingFeePercentage) / 10_000);
  
         uint256 totalAmountUser3 = stakeAmountUser3;
         uint256 expectedFeeUser3 = totalAmountUser3 * unstakingFeePercentage / 10_000;

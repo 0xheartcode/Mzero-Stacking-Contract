@@ -91,6 +91,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
         require(staker.amountStaked > 0, "No tokens staked");
         require(staker.unstakeInitTime == 0, "Unstake already initiated");
         staker.unstakeInitTime = block.timestamp;
+        staker.rewardDebt = rewardPerTokenStored;
         emit UnstakeInitiated(msg.sender);
     }
 
