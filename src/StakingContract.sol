@@ -16,6 +16,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
     uint256 public unstakeFeePercent = 0; // Fee for unstaking early, in basis points
     uint256 public emissionStart;
     uint256 public emissionEnd;
+    uint256 public feesAccrued;
 
     struct Staker {
         uint256 amountStaked;
@@ -104,6 +105,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
         uint256 fee = amount * unstakeFeePercent / 10000;
         uint256 amountAfterFee = amount - fee;
 
+        feesAccrued += fee;
         totalStaked -= amount;
         
         // If there are rewards, combine them with the staked amount after fees for a single transfer
@@ -155,4 +157,11 @@ contract StakingContract is ReentrancyGuard, Ownable {
         emissionEnd = emissionEnd + _emissionDuration; //extends the duration. Does not reduce it
         emit EmissionsUpdated(emissionEnd);
     }
+
+    function withdrawFees(uint256 amount) external onlyOwner {
+        require(amount <= feesAccrued, "Amount exceeds accrued fees");
+        feesAccrued -= amount;
+        require(basicToken.transfer(msg.sender, amount), "Fee withdrawal failed");
+    }
+
 }

@@ -260,7 +260,95 @@ contract StakingContractTest is Test {
         uint256 finalBalance = basicToken.balanceOf(staker1);
         assertEq(finalBalance - initialBalance, 0, "Claimed rewards after unstaking do not match expected rewards at the point of unstaking.");
     }
+
+
+function testCompleteUnstakeWithEmissionsFeesWithdraw() public {
+        uint256 stakeAmountUser1 = 1e18; // 1 token for user 1
+        uint256 stakeAmountUser2 = 3e18; // 2 tokens for user 2
+        uint256 stakeAmountUser3 = 1e18; // 1 token for user 3
+        uint256 unstakingFeePercentage = 200; // 2% unstaking fee
+        uint256 unstakingDelay = 15 days; // Unstaking delay
+        uint256 emissionRate = 1; // Example emission rate per day for simplicity
+        uint256 feeAmounts;
+        // Set unstaking fee and emission rate
+        //vm.startPrank(deployer);
+        stakingContract.setUnstakeFeePercent(unstakingFeePercentage);
+        //stakingContract.setEmissionDetails(emissionRate, unstakingDelay);
+        //vm.stopPrank();
+
+        // User 1 stakes
+        vm.startPrank(staker1);
+        stakingContract.stake(stakeAmountUser1);
+        stakingContract.initiateUnstake();
+        vm.stopPrank();
+
+        // User 2 stakes
+        vm.startPrank(staker2);
+        stakingContract.stake(stakeAmountUser2);
+        stakingContract.initiateUnstake();
+        vm.stopPrank();
+
+        // User 3 stakes
+        vm.startPrank(staker3);
+        stakingContract.stake(stakeAmountUser3);
+        vm.warp(block.timestamp);
+        stakingContract.initiateUnstake();
+        vm.stopPrank();
+
+
+        // Fast forward to after the unstaking delay
+        vm.warp(block.timestamp + unstakingDelay);
+
+        vm.startPrank(staker3);
+        stakingContract.earned(staker3);
+        stakingContract.claimReward();
+        vm.stopPrank();
+
+        // Calculate expected returns and fees for both users, incorporating emission effects
+        // Assuming rewards are linearly accumulated over time for simplicity
+        uint256 percentageUser1 = stakeAmountUser1 *1e18/ stakingContract.totalStaked();
+        uint256 totalRewardsUser1 = emissionRate * unstakingDelay * percentageUser1; 
+        uint256 feeAmountUser1 = ((stakeAmountUser1 * unstakingFeePercentage) / 10_000);
+        uint256 StakeMinusFeeUser1 = stakeAmountUser1 - ((stakeAmountUser1 * unstakingFeePercentage) / 10_000);
+        
+
+        uint256 percentageUser2 = stakeAmountUser2 *1e18/ stakingContract.totalStaked();
+        uint256 totalRewardsUser2 = emissionRate * (unstakingDelay) * percentageUser2; 
+        uint256 feeAmountUser2 = ((stakeAmountUser2 * unstakingFeePercentage) / 10_000);
+        uint256 StakeMinusFeeUser2 = stakeAmountUser2 - ((stakeAmountUser2 * unstakingFeePercentage) / 10_000);
+ 
+        uint256 totalAmountUser3 = stakeAmountUser3;
+        uint256 expectedFeeUser3 = totalAmountUser3 * unstakingFeePercentage / 10_000;
+        feeAmounts = expectedFeeUser3 + feeAmountUser2 + feeAmountUser1; 
+        // Complete unstaking for both users and validate balances, including rewards
+
+        vm.startPrank(staker1);
+        stakingContract.completeUnstake();
+        vm.stopPrank();
+
+        vm.startPrank(staker2);
+        stakingContract.completeUnstake();
+        vm.stopPrank();
+
+        vm.startPrank(staker3);
+        stakingContract.completeUnstake();
+        vm.stopPrank();
     
+        // Check fees here, with basic deployer test, if the amount is correct/
+
+        vm.expectRevert("Amount exceeds accrued fees");
+        stakingContract.withdrawFees(feeAmounts*10);
+
+        uint256 ownerBalanceBefore = basicToken.balanceOf(stakingContract.owner());
+        console.log("Owner Balance before",ownerBalanceBefore);
+        stakingContract.withdrawFees(feeAmounts);
+        uint256 ownerBalanceAfter = basicToken.balanceOf(stakingContract.owner());
+        console.log("Owner Balance after",ownerBalanceAfter);
+        assertEq(ownerBalanceAfter, ownerBalanceBefore + feeAmounts, "The owner cannot withdraw the correct amount");
+}
+
+
+
     function testCompleteUnstakeWithEmissions() public {
         uint256 stakeAmountUser1 = 1e18; // 1 token for user 1
         uint256 stakeAmountUser2 = 3e18; // 2 tokens for user 2
