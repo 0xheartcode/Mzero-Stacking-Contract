@@ -165,4 +165,16 @@ contract StakingContract is ReentrancyGuard, Ownable {
         require(basicToken.transfer(msg.sender, amount), "Fee withdrawal failed");
     }
 
+    function retrieveLockedTokens(
+        address tokenAddress, 
+        uint256 amount
+    ) external onlyOwner {
+
+        require(amount > 0, "Amount must be greater than zero");
+        IERC20 token = IERC20(tokenAddress);
+        require(token.balanceOf(address(this)) >= amount, "Insufficient token balance in contract");
+        
+        require(token.transfer(msg.sender, amount), "Token transfer failed");
+    }
+
 }
