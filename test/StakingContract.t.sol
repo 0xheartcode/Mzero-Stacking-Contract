@@ -268,7 +268,6 @@ function testCompleteUnstakeWithEmissionsFeesWithdraw() public {
         uint256 stakeAmountUser3 = 1e18; // 1 token for user 3
         uint256 unstakingFeePercentage = 200; // 2% unstaking fee
         uint256 unstakingDelay = 15 days; // Unstaking delay
-        uint256 emissionRate = 1; // Example emission rate per day for simplicity
         uint256 feeAmounts;
         // Set unstaking fee and emission rate
         //vm.startPrank(deployer);
@@ -306,11 +305,9 @@ function testCompleteUnstakeWithEmissionsFeesWithdraw() public {
 
         // Calculate expected returns and fees for both users, incorporating emission effects
         // Assuming rewards are linearly accumulated over time for simplicity
-        uint256 percentageUser1 = stakeAmountUser1 *1e18/ stakingContract.totalStaked();
         uint256 feeAmountUser1 = ((stakeAmountUser1 * unstakingFeePercentage) / 10_000);
         
 
-        uint256 percentageUser2 = stakeAmountUser2 *1e18/ stakingContract.totalStaked();
         uint256 feeAmountUser2 = ((stakeAmountUser2 * unstakingFeePercentage) / 10_000);
  
         uint256 totalAmountUser3 = stakeAmountUser3;
