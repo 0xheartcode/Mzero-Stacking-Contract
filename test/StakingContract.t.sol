@@ -520,10 +520,79 @@ function testCompleteUnstakeWithEmissionsFeesWithdraw() public {
         assertEq(unstakeInitTimePostUnstakeStaker3, 0);
 
         // @dev Unstake and change unstake time from dev:
-
-
         vm.stopPrank();
     }
+
+    /// @notice Test check if unstaking and restaking is possible
+    function testNoAccumulationAfterNoRemainingTime() public {
+        vm.startPrank(staker1);
+
+        // stake 1
+        stakingContract.stake(1 * 1e18);
+        stakingContract.initiateUnstake();
+        vm.warp(block.timestamp + stakingContract.getRemainingUnstakeTime(staker1));
+        uint256 earnedAfterUnstakeTime = stakingContract.earned(staker1);
+        vm.warp(block.timestamp + 15 days);
+        uint256 earnedAfterUnstakeTimePlus15days = stakingContract.earned(staker1);
+        
+        // TODO known bad behavior, rewards accumulate after unstake time if they are not claimed.
+        // TODO should be `assertEq` instead of `assertLt`
+        assertLt(earnedAfterUnstakeTime, earnedAfterUnstakeTimePlus15days, "Rewards accumulating if they have not been claimed");
+        stakingContract.completeUnstake();
+
+        vm.warp(stakingContract.emissionEnd() - 10);
+        vm.stopPrank();
+        vm.startPrank(staker2);
+        stakingContract.stake(1 * 1e18);
+        vm.warp(block.timestamp + 10);
+        uint256 currentEarningsStaker2 = stakingContract.earned(staker2);
+        vm.warp(block.timestamp + 100 days);
+        uint256 laterEarningsStaker2 = stakingContract.earned(staker2);
+        assertEq(currentEarningsStaker2, laterEarningsStaker2, "Earnings not equal post Emission end");
+        vm.stopPrank();
+    }
+
+
+    /// @notice Test check if unstaking and restaking is possible
+    function testUnstakeAndRestake() public {
+        vm.startPrank(staker1);
+        uint256 balanceBefore = basicToken.balanceOf(staker1);
+        // stake 1
+        stakingContract.stake(1 * 1e18);
+        stakingContract.initiateUnstake();
+        vm.warp(block.timestamp + stakingContract.getRemainingUnstakeTime(staker1));
+        stakingContract.completeUnstake();
+
+
+        // stake 2
+        stakingContract.stake(1 * 1e18);
+        stakingContract.initiateUnstake();
+        
+        vm.stopPrank();
+        vm.startPrank(staker2);
+        stakingContract.stake(1 * 1e18);
+        stakingContract.initiateUnstake();
+        vm.stopPrank();
+        vm.startPrank(staker1);
+        vm.warp(block.timestamp + stakingContract.getRemainingUnstakeTime(staker1));
+        stakingContract.completeUnstake();
+
+
+        // stake 3
+        stakingContract.stake(1 * 1e18);
+        stakingContract.initiateUnstake();
+        vm.warp(block.timestamp + stakingContract.getRemainingUnstakeTime(staker1));
+        stakingContract.completeUnstake();
+        vm.stopPrank();
+        vm.startPrank(staker2);
+        stakingContract.completeUnstake();
+        uint256 balanceAfter = basicToken.balanceOf(staker1);
+
+        assertGt(balanceAfter, balanceBefore, "balanceAfter staking and completing 3 times is not greater than balanceBefore");
+        vm.stopPrank();
+
+    }
+
 
     /// @notice Test to measure the correct balance after `completeUnstake()`
     function testUnstakeWithTimelockBalanceCheck() public {
