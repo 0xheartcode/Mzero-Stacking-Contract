@@ -16,20 +16,24 @@ contract StakingContract is ReentrancyGuard, Ownable {
     uint256 public unstakeFeePercent = 0; // Fee for unstaking early, in basis points
     uint256 public emissionStart;
     uint256 public emissionEnd;
+    uint256 public feesAccrued;
 
     struct Staker {
         uint256 amountStaked;
         uint256 rewardDebt;
         uint256 rewards;
         uint256 unstakeInitTime;
+        uint256 unstakeInitTime;
+        bool claimedAfterUnstake;
     }
 
     mapping(address => Staker) public stakers;
 
+    event UnstakeInitiated(address indexed user);
     event Staked(address indexed user, uint256 amount);
     event Unstaked(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
-    event UnstakeInitiated(address indexed user);
+    event EmissionsUpdated(uint256 newEmissionEnd);
 
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
@@ -69,24 +73,17 @@ contract StakingContract is ReentrancyGuard, Ownable {
 
     function earned(address account) public view returns (uint256) {
         Staker storage staker = stakers[account];
-        uint256 lastEffectiveTime = lastApplicableTime();
-        uint256 lastTimeRewardApplicable = lastEffectiveTime;
-        if (
-            staker.unstakeInitTime != 0 &&
-            staker.unstakeInitTime < lastTimeRewardApplicable
-        ) {
-            lastTimeRewardApplicable = staker.unstakeInitTime;
+        if (staker.claimedAfterUnstake == true) {
+            return 0;
         }
-        if (totalStaked == 0) {
-            return 0; // Return 0 early if no tokens are staked
+        if (staker.unstakeInitTime != 0) {
+            return staker.rewards;
+        } else {
+            return
+                ((staker.amountStaked *
+                    (rewardPerToken() - staker.rewardDebt)) / 1e18) +
+                staker.rewards;
         }
-        uint256 rewardApplicable = rewardPerTokenStored +
-            (((lastEffectiveTime - lastTimeRewardApplicable) *
-                rewardRate *
-                1e18) / totalStaked);
-        return
-            ((staker.amountStaked * (rewardApplicable - staker.rewardDebt)) /
-                1e18) + staker.rewards;
     }
 
     function stake(
@@ -128,6 +125,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
         uint256 fee = (amount * unstakeFeePercent) / 10000;
         uint256 amountAfterFee = amount - fee;
 
+        feesAccrued += fee;
         totalStaked -= amount;
 
         // If there are rewards, combine them with the staked amount after fees for a single transfer
