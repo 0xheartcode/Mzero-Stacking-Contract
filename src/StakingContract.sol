@@ -12,24 +12,27 @@ contract StakingContract is ReentrancyGuard, Ownable {
     uint256 public rewardRate;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
-    uint256 public unstakeTimeLock = 15 days; // Default time lock for unstaking
-    uint256 public unstakeFeePercent = 0; // Fee for unstaking early, in basis points
+    uint256 public unstakeTimeLock = 7 days; // Default time lock for unstaking
+    uint256 public unstakeFeePercent = 0; // Fee for unstaking, in basis points
     uint256 public emissionStart;
     uint256 public emissionEnd;
+    uint256 public feesAccrued;
 
     struct Staker {
         uint256 amountStaked;
         uint256 rewardDebt;
         uint256 rewards;
         uint256 unstakeInitTime; 
+        bool claimedAfterUnstake; 
     }
 
     mapping(address => Staker) public stakers;
 
+    event UnstakeInitiated(address indexed user);
     event Staked(address indexed user, uint256 amount);
     event Unstaked(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
-    event UnstakeInitiated(address indexed user);
+    event EmissionsUpdated(uint256 newEmissionEnd);
 
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
@@ -63,21 +66,19 @@ contract StakingContract is ReentrancyGuard, Ownable {
 
     function earned(address account) public view returns (uint256) {
         Staker storage staker = stakers[account];
-        uint256 lastEffectiveTime = lastApplicableTime();
-        uint256 lastTimeRewardApplicable = lastEffectiveTime;
-        if (staker.unstakeInitTime != 0 && staker.unstakeInitTime < lastTimeRewardApplicable) {
-            lastTimeRewardApplicable = staker.unstakeInitTime;
+        if (staker.claimedAfterUnstake == true) {
+                return 0;
         }
-            if (totalStaked == 0) {
-        return 0; // Return 0 early if no tokens are staked
-    }
-        uint256 rewardApplicable = rewardPerTokenStored + (
-            (lastEffectiveTime - lastTimeRewardApplicable) * rewardRate * 1e18 / totalStaked
-        );
+        // Check if unstake has been initiated and rewards have not been claimed after unstake
+        if (staker.unstakeInitTime != 0 && staker.claimedAfterUnstake == false) {
+            return staker.rewards; // Return current rewards without further calculation
+        }
         return (
-            staker.amountStaked * (rewardApplicable - staker.rewardDebt) / 1e18
+            staker.amountStaked *
+            (rewardPerToken() - staker.rewardDebt) / 1e18
         ) + staker.rewards;
     }
+
 
     function stake(uint256 _amount) external nonReentrant updateReward(msg.sender) {
         require(_amount > 0, "Cannot stake 0");
@@ -100,6 +101,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
     function completeUnstake() external nonReentrant updateReward(msg.sender) {
         Staker storage staker = stakers[msg.sender];
         require(staker.amountStaked > 0, "No tokens staked");
+        require(staker.unstakeInitTime > 0, "Unstake not initiated");
         require(block.timestamp >= staker.unstakeInitTime + unstakeTimeLock, "Timelock not yet passed");
 
         uint256 amount = staker.amountStaked;
@@ -107,20 +109,20 @@ contract StakingContract is ReentrancyGuard, Ownable {
         uint256 fee = amount * unstakeFeePercent / 10000;
         uint256 amountAfterFee = amount - fee;
 
+        feesAccrued += fee;
         totalStaked -= amount;
         
         // If there are rewards, combine them with the staked amount after fees for a single transfer
         if (reward > 0) {
             uint256 totalAmount = amountAfterFee + reward;
             require(basicToken.transfer(msg.sender, totalAmount), "Transfer failed");
-            staker.rewards = 0; // Reset rewards
             emit RewardPaid(msg.sender, reward);
         } else {
             // If there are no rewards, just transfer the staked amount after fees
             require(basicToken.transfer(msg.sender, amountAfterFee), "Unstake transfer failed");
         }
 
-        delete stakers[msg.sender]; 
+        delete stakers[msg.sender]; // Reset rewards and all information here
         emit Unstaked(msg.sender, amount);
     }
 
@@ -128,6 +130,9 @@ contract StakingContract is ReentrancyGuard, Ownable {
         uint256 reward = stakers[msg.sender].rewards;
         require(reward > 0, "No rewards to claim");
         stakers[msg.sender].rewards = 0;
+        if (stakers[msg.sender].unstakeInitTime != 0){
+            stakers[msg.sender].claimedAfterUnstake = true;
+        }
         require(basicToken.transfer(msg.sender, reward), "Reward transfer failed");
         emit RewardPaid(msg.sender, reward);
     }
@@ -151,11 +156,28 @@ contract StakingContract is ReentrancyGuard, Ownable {
         }
     }
 
-    // TODO remove this function
-    /// @dev only temporary function to change fees during tests
-    // Optionally, a function to allow the owner to update emission details
-    function setEmissionDetails(uint256 _rewardRate, uint256 _emissionDuration) external onlyOwner {
-        rewardRate = _rewardRate;
-        emissionEnd = block.timestamp + _emissionDuration;
+    // Allow owner to update emission enddate
+    function setEmissionDetails(uint256 _emissionDuration) external onlyOwner {
+        emissionEnd = emissionEnd + _emissionDuration; //extends the duration. Does not reduce it
+        emit EmissionsUpdated(emissionEnd);
     }
+
+    function withdrawFees(uint256 amount) external onlyOwner {
+        require(amount <= feesAccrued, "Amount exceeds accrued fees");
+        feesAccrued -= amount;
+        require(basicToken.transfer(msg.sender, amount), "Fee withdrawal failed");
+    }
+
+    function retrieveLockedTokens(
+        address tokenAddress, 
+        uint256 amount
+    ) external onlyOwner {
+
+        require(amount > 0, "Amount must be greater than zero");
+        IERC20 token = IERC20(tokenAddress);
+        require(token.balanceOf(address(this)) >= amount, "Insufficient token balance in contract");
+        
+        require(token.transfer(msg.sender, amount), "Token transfer failed");
+    }
+
 }
