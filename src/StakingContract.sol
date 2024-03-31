@@ -69,10 +69,6 @@ contract StakingContract is ReentrancyGuard, Ownable {
         if (staker.claimedAfterUnstake == true) {
                 return 0;
         }
-        // Check if unstake has been initiated and rewards have not been claimed after unstake
-        if (staker.unstakeInitTime != 0 && staker.claimedAfterUnstake == false) {
-            return staker.rewards; // Return current rewards without further calculation
-        }
         return (
             staker.amountStaked *
             (rewardPerToken() - staker.rewardDebt) / 1e18
