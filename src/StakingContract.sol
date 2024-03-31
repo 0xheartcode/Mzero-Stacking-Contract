@@ -12,7 +12,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
     uint256 public rewardRate;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
-    uint256 public unstakeTimeLock = 7 days; // Default time lock for unstaking
+    uint256 public unstakeTimeLock = 15 days; // Default time lock for unstaking
     uint256 public unstakeFeePercent = 0; // Fee for unstaking early, in basis points
     uint256 public emissionStart;
     uint256 public emissionEnd;
@@ -21,7 +21,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
         uint256 amountStaked;
         uint256 rewardDebt;
         uint256 rewards;
-        uint256 unstakeInitTime;
+        uint256 unstakeInitTime; 
     }
 
     mapping(address => Staker) public stakers;
@@ -41,12 +41,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
         _;
     }
 
-    constructor(
-        IERC20 _basicToken,
-        uint256 _rewardRate,
-        uint256 _emissionStart,
-        uint256 _emissionDuration
-    ) Ownable(msg.sender) {
+    constructor(IERC20 _basicToken, uint256 _rewardRate, uint256 _emissionStart, uint256 _emissionDuration) Ownable(msg.sender) {
         basicToken = _basicToken;
         rewardRate = _rewardRate;
         emissionStart = _emissionStart;
@@ -61,49 +56,36 @@ contract StakingContract is ReentrancyGuard, Ownable {
         if (totalStaked == 0) {
             return rewardPerTokenStored;
         }
-        return
-            rewardPerTokenStored +
-            (((lastApplicableTime() - lastUpdateTime) * rewardRate * 1e18) /
-                totalStaked);
+        return rewardPerTokenStored + (
+            (lastApplicableTime() - lastUpdateTime) * rewardRate * 1e18 / totalStaked
+        );
     }
 
     function earned(address account) public view returns (uint256) {
         Staker storage staker = stakers[account];
         uint256 lastEffectiveTime = lastApplicableTime();
         uint256 lastTimeRewardApplicable = lastEffectiveTime;
-        if (
-            staker.unstakeInitTime != 0 &&
-            staker.unstakeInitTime < lastTimeRewardApplicable
-        ) {
+        if (staker.unstakeInitTime != 0 && staker.unstakeInitTime < lastTimeRewardApplicable) {
             lastTimeRewardApplicable = staker.unstakeInitTime;
         }
-        if (totalStaked == 0) {
-            return 0; // Return 0 early if no tokens are staked
-        }
-        uint256 rewardApplicable = rewardPerTokenStored +
-            (((lastEffectiveTime - lastTimeRewardApplicable) *
-                rewardRate *
-                1e18) / totalStaked);
-        return
-            ((staker.amountStaked * (rewardApplicable - staker.rewardDebt)) /
-                1e18) + staker.rewards;
+            if (totalStaked == 0) {
+        return 0; // Return 0 early if no tokens are staked
+    }
+        uint256 rewardApplicable = rewardPerTokenStored + (
+            (lastEffectiveTime - lastTimeRewardApplicable) * rewardRate * 1e18 / totalStaked
+        );
+        return (
+            staker.amountStaked * (rewardApplicable - staker.rewardDebt) / 1e18
+        ) + staker.rewards;
     }
 
-    function stake(
-        uint256 _amount
-    ) external nonReentrant updateReward(msg.sender) {
+    function stake(uint256 _amount) external nonReentrant updateReward(msg.sender) {
         require(_amount > 0, "Cannot stake 0");
         Staker storage staker = stakers[msg.sender];
-        require(
-            staker.unstakeInitTime == 0,
-            "Cannot stake after initiating unstake."
-        );
+        require(staker.unstakeInitTime == 0, "Cannot stake after initiating unstake.");
         totalStaked += _amount;
         staker.amountStaked += _amount;
-        require(
-            basicToken.transferFrom(msg.sender, address(this), _amount),
-            "Token deposit failed"
-        );
+        require(basicToken.transferFrom(msg.sender, address(this), _amount), "Token deposit failed");
         emit Staked(msg.sender, _amount);
     }
 
@@ -118,36 +100,27 @@ contract StakingContract is ReentrancyGuard, Ownable {
     function completeUnstake() external nonReentrant updateReward(msg.sender) {
         Staker storage staker = stakers[msg.sender];
         require(staker.amountStaked > 0, "No tokens staked");
-        require(
-            block.timestamp >= staker.unstakeInitTime + unstakeTimeLock,
-            "Timelock not yet passed"
-        );
+        require(block.timestamp >= staker.unstakeInitTime + unstakeTimeLock, "Timelock not yet passed");
 
         uint256 amount = staker.amountStaked;
         uint256 reward = staker.rewards;
-        uint256 fee = (amount * unstakeFeePercent) / 10000;
+        uint256 fee = amount * unstakeFeePercent / 10000;
         uint256 amountAfterFee = amount - fee;
 
         totalStaked -= amount;
-
+        
         // If there are rewards, combine them with the staked amount after fees for a single transfer
         if (reward > 0) {
             uint256 totalAmount = amountAfterFee + reward;
-            require(
-                basicToken.transfer(msg.sender, totalAmount),
-                "Transfer failed"
-            );
+            require(basicToken.transfer(msg.sender, totalAmount), "Transfer failed");
             staker.rewards = 0; // Reset rewards
             emit RewardPaid(msg.sender, reward);
         } else {
             // If there are no rewards, just transfer the staked amount after fees
-            require(
-                basicToken.transfer(msg.sender, amountAfterFee),
-                "Unstake transfer failed"
-            );
+            require(basicToken.transfer(msg.sender, amountAfterFee), "Unstake transfer failed");
         }
 
-        delete stakers[msg.sender];
+        delete stakers[msg.sender]; 
         emit Unstaked(msg.sender, amount);
     }
 
@@ -155,10 +128,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
         uint256 reward = stakers[msg.sender].rewards;
         require(reward > 0, "No rewards to claim");
         stakers[msg.sender].rewards = 0;
-        require(
-            basicToken.transfer(msg.sender, reward),
-            "Reward transfer failed"
-        );
+        require(basicToken.transfer(msg.sender, reward), "Reward transfer failed");
         emit RewardPaid(msg.sender, reward);
     }
 
@@ -168,16 +138,11 @@ contract StakingContract is ReentrancyGuard, Ownable {
     }
 
     function setUnstakeTimeLock(uint256 _newTimeLock) external onlyOwner {
-        require(
-            _newTimeLock <= 15 days,
-            "Time lock must be between 0 to 15 days"
-        );
+        require(_newTimeLock <= 15 days, "Time lock must be between 0 to 15 days");
         unstakeTimeLock = _newTimeLock;
     }
 
-    function getRemainingUnstakeTime(
-        address _staker
-    ) external view returns (uint256) {
+    function getRemainingUnstakeTime(address _staker) external view returns (uint256) {
         Staker storage staker = stakers[_staker];
         if (block.timestamp < staker.unstakeInitTime + unstakeTimeLock) {
             return (staker.unstakeInitTime + unstakeTimeLock) - block.timestamp;
@@ -189,10 +154,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
     // TODO remove this function
     /// @dev only temporary function to change fees during tests
     // Optionally, a function to allow the owner to update emission details
-    function setEmissionDetails(
-        uint256 _rewardRate,
-        uint256 _emissionDuration
-    ) external onlyOwner {
+    function setEmissionDetails(uint256 _rewardRate, uint256 _emissionDuration) external onlyOwner {
         rewardRate = _rewardRate;
         emissionEnd = block.timestamp + _emissionDuration;
     }
