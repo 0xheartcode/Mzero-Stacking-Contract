@@ -9,6 +9,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
     IERC20 public basicToken;
 
     uint256 public totalStaked;
+    uint256 public totalStakedAccruingRewards;  //TODO testing if Math works out here
     uint256 public rewardRate;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
@@ -37,10 +38,20 @@ contract StakingContract is ReentrancyGuard, Ownable {
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastApplicableTime();
-        if (account != address(0)) {
+        if (stakers[account].unstakeInitTime == 0 ) {
             stakers[account].rewards = earned(account);
             stakers[account].rewardDebt = rewardPerTokenStored;
         }
+        
+        if (stakers[account].unstakeInitTime != 0 ) {
+
+            if (stakers[account].claimedAfterUnstake == true) {
+                stakers[account].rewards = 0;
+                }
+                // else if (stakers[account].claimedAfterUnstake != false)
+                // do nothing
+                //stakers[account].rewards = stakers[account].rewards;
+            }
         _;
     }
 
@@ -56,11 +67,11 @@ contract StakingContract is ReentrancyGuard, Ownable {
     }
 
     function rewardPerToken() public view returns (uint256) {
-        if (totalStaked == 0) {
+        if (totalStakedAccruingRewards == 0) {
             return rewardPerTokenStored;
         }
         return rewardPerTokenStored + (
-            (lastApplicableTime() - lastUpdateTime) * rewardRate * 1e18 / totalStaked
+            (lastApplicableTime() - lastUpdateTime) * rewardRate * 1e18 / totalStakedAccruingRewards
         );
     }
 
@@ -68,6 +79,9 @@ contract StakingContract is ReentrancyGuard, Ownable {
         Staker storage staker = stakers[account];
         if (staker.claimedAfterUnstake == true) {
                 return 0;
+        }
+        if (staker.unstakeInitTime != 0) {
+                return staker.rewards;
         }
         return (
             staker.amountStaked *
@@ -81,6 +95,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
         Staker storage staker = stakers[msg.sender];
         require(staker.unstakeInitTime == 0, "Cannot stake after initiating unstake.");
         totalStaked += _amount;
+        totalStakedAccruingRewards += _amount;
         staker.amountStaked += _amount;
         require(basicToken.transferFrom(msg.sender, address(this), _amount), "Token deposit failed");
         emit Staked(msg.sender, _amount);
@@ -91,6 +106,7 @@ contract StakingContract is ReentrancyGuard, Ownable {
         require(staker.amountStaked > 0, "No tokens staked");
         require(staker.unstakeInitTime == 0, "Unstake already initiated");
         staker.unstakeInitTime = block.timestamp;
+        totalStakedAccruingRewards -= staker.amountStaked;
         emit UnstakeInitiated(msg.sender);
     }
 
