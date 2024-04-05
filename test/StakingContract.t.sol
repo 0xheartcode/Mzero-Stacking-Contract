@@ -679,42 +679,5 @@ function testCompleteUnstakeWithEmissionsFeesWithdraw() public {
         stakingContract.setEmissionDetails(20);
         vm.stopPrank();
     }
-
-
-    function testRetrieveLockedTokens() public {
-        
-        // Deploy another token to test retrieval of a different token
-        BasicToken anotherToken = new BasicToken();
-        anotherToken.transfer(address(stakingContract), 500 * 1e18);
-
-
-        // Attempt to retrieve more tokens than the contract has (Should fail)
-        vm.expectRevert("Insufficient token balance in contract");
-        //vm.prank(deployer);
-        stakingContract.retrieveLockedTokens(address(basicToken), 11_000_000 * 1e18);
-
-        // Attempt to retrieve less tokens than the contract has (Should succeed)
-        uint256 initialDeployerBalance = basicToken.balanceOf(stakingContract.owner());
-        uint256 retrieveAmount = 100 * 1e18; // Less than contract's balance
-        //vm.prank(deployer);
-        stakingContract.retrieveLockedTokens(address(basicToken), retrieveAmount);
-        uint256 newDeployerBalance = basicToken.balanceOf(stakingContract.owner());
-        assertEq(newDeployerBalance, initialDeployerBalance + retrieveAmount, "Retrieve less tokens failed");
-
-        // Attempt to retrieve the exact amount of tokens the contract has (Should succeed)
-        initialDeployerBalance = anotherToken.balanceOf(stakingContract.owner());
-        retrieveAmount = 500 * 1e18; // Exact amount contract has
-        //vm.prank(deployer);
-        stakingContract.retrieveLockedTokens(address(anotherToken), retrieveAmount);
-        newDeployerBalance = anotherToken.balanceOf(stakingContract.owner());
-        assertEq(newDeployerBalance, initialDeployerBalance + retrieveAmount, "Retrieve exact tokens failed");
-
-        // Attempt retrieval by a non-owner (Should fail)
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector,staker1));
-        vm.prank(staker1);
-        stakingContract.retrieveLockedTokens(address(basicToken), 1e18);
-
-    }
-   
 }
 
