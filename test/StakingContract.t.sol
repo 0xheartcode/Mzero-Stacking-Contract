@@ -55,7 +55,7 @@ contract StakingContractTest is Test {
         stakingContract.stake(100 * 1e18);
 
         // Check if the staked amount is correctly recorded
-        (uint256 amountStaked,,,,) = stakingContract.stakers(staker1);
+        (uint256 amountStaked,,,) = stakingContract.stakers(staker1);
         assertEq(amountStaked, 100 * 1e18);
 
         stakingContract.stake(1 * 1e18);
@@ -66,10 +66,10 @@ contract StakingContractTest is Test {
         vm.startPrank(staker2);
         stakingContract.stake(1 * 1e18);
         stakingContract.stake(2 * 1e18);
-        (uint256 amountStakedStaker2,,,,) = stakingContract.stakers(staker2);
+        (uint256 amountStakedStaker2,,,) = stakingContract.stakers(staker2);
         assertEq(amountStakedStaker2, 3 * 1e18);
         
-        (uint256 amountStakedNext,,,,) = stakingContract.stakers(staker1);
+        (uint256 amountStakedNext,,,) = stakingContract.stakers(staker1);
         assertEq(amountStakedNext, 105 * 1e18);
 
         vm.stopPrank();
@@ -445,7 +445,7 @@ function testCompleteUnstakeWithEmissionsFeesWithdraw() public {
 
         // Initiate unstake
         stakingContract.initiateUnstake();
-        (,,,uint256 unstakeInitTime,) = stakingContract.stakers(staker1);
+        (,,,uint256 unstakeInitTime) = stakingContract.stakers(staker1);
         assertEq(unstakeInitTime, block.timestamp);
  
         // Fail: early unstake attempt 
@@ -516,10 +516,10 @@ function testCompleteUnstakeWithEmissionsFeesWithdraw() public {
         stakingContract.completeUnstake();
         vm.stopPrank();
         vm.startPrank(staker3);
-        (,,,uint256 unstakeInitTimePretUnstakeStaker3,) = stakingContract.stakers(staker3);
+        (,,,uint256 unstakeInitTimePretUnstakeStaker3) = stakingContract.stakers(staker3);
         assertGe(unstakeInitTimePretUnstakeStaker3, 0);
         stakingContract.completeUnstake();
-        (,,,uint256 unstakeInitTimePostUnstakeStaker3,) = stakingContract.stakers(staker3);
+        (,,,uint256 unstakeInitTimePostUnstakeStaker3) = stakingContract.stakers(staker3);
         assertEq(unstakeInitTimePostUnstakeStaker3, 0);
 
         // @dev Unstake and change unstake time from dev:
