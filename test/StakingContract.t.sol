@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
 import "../src/StakingContract.sol";
@@ -30,7 +30,7 @@ contract StakingContractTest is Test {
         // Deploy the BasicToken contract and mint tokens to the staker
         basicToken = new BasicToken();
         for (uint i = 0; i < stakers.length; i++) {
-            basicToken.transfer(stakers[i], 100_000 * 1e18);
+            basicToken.transfer(stakers[i], 1_000_000 * 1e18);
         }
         
         // Deploy the StakingContract with the BasicToken as the staking/reward token
@@ -49,46 +49,52 @@ contract StakingContractTest is Test {
     }
 
     /// @notice ==== Staker functions below ====
-    function testStakeAmount() public {
+    function testStakeAmount(uint256 _stakeAmount) public {
+        // Bound the input to prevent excessively large values
+        uint256 stakeAmount = bound(_stakeAmount, 1e18, 200_000e18);
+
         // Simulate staker1 staking tokens
         vm.startPrank(staker1);
-        stakingContract.stake(100 * 1e18);
+        stakingContract.stake(stakeAmount);
 
         // Check if the staked amount is correctly recorded
         (uint256 amountStaked,,,) = stakingContract.stakers(staker1);
-        assertEq(amountStaked, 100 * 1e18);
+        assertEq(amountStaked, stakeAmount);
 
-        stakingContract.stake(1 * 1e18);
-        stakingContract.stake(2 * 1e18);
-        stakingContract.stake(2 * 1e18);
+        stakingContract.stake(stakeAmount);
+        stakingContract.stake(stakeAmount);
+        stakingContract.stake(stakeAmount);
         vm.stopPrank();
 
         vm.startPrank(staker2);
-        stakingContract.stake(1 * 1e18);
-        stakingContract.stake(2 * 1e18);
+        stakingContract.stake(stakeAmount);
+        stakingContract.stake(stakeAmount*2);
         (uint256 amountStakedStaker2,,,) = stakingContract.stakers(staker2);
-        assertEq(amountStakedStaker2, 3 * 1e18);
+        assertEq(amountStakedStaker2, stakeAmount*3);
         
         (uint256 amountStakedNext,,,) = stakingContract.stakers(staker1);
-        assertEq(amountStakedNext, 105 * 1e18);
+        assertEq(amountStakedNext, stakeAmount*4);
 
         vm.stopPrank();
     }
 
 
-    function testStakeAndEarnRewards() public {
+    function testStakeAndEarnRewards(uint256 _stakeAmount, uint256 _timeDelay) public {
+        uint256 stakeAmount = bound(_stakeAmount, 1e18, 200_000e18);
+        uint256 timeDelay = bound(_timeDelay, 2, stakingContract.unstakeTimeLock()*100);
+
         // User1 stakes 10000 tokens
         vm.startPrank(staker1);
-        stakingContract.stake(100 * 1e18);
+        stakingContract.stake(stakeAmount);
 
         // Warp 1 week into the future
-        vm.warp(block.timestamp + 1 days);
+        vm.warp(block.timestamp + timeDelay);
 
         // Claim rewards
         stakingContract.claimReward();
 
         // Check that user1's balance increased due to rewards
-        assertTrue(basicToken.balanceOf(staker1) > 1000 * 1e18);
+        assertTrue(basicToken.balanceOf(staker1) > stakeAmount);
         vm.stopPrank();
     }
 
