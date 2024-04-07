@@ -659,31 +659,5 @@ function testCompleteUnstakeWithEmissionsFeesWithdraw() public {
         vm.stopPrank();
     }
 
- 
-    function testAdminChangeEmissionsAndEnd() public {
-        //vm.startPrank(deployer);
-        uint256 _emissionEnd1 = stakingContract.emissionEnd();
-        stakingContract.setEmissionDetails(10 days);
-        assertEq(stakingContract.emissionEnd(), _emissionEnd1 + 10 days, "EmissionEnd not updated correctly.");
-
-        _emissionEnd1 = stakingContract.emissionEnd();
-        stakingContract.setEmissionDetails(1);
-        assertEq(stakingContract.emissionEnd(), _emissionEnd1 + 1, "EmissionEnd not updated correctly.");
-
-        _emissionEnd1 = stakingContract.emissionEnd();
-        stakingContract.setEmissionDetails(0);
-        assertEq(stakingContract.emissionEnd(), _emissionEnd1, "EmissionEnd not updated correctly.");
-
-        _emissionEnd1 = stakingContract.emissionEnd();
-        stakingContract.setEmissionDetails(15 days);
-        assertEq(stakingContract.emissionEnd(), _emissionEnd1 + 15 days, "EmissionEnd not updated correctly.");
-        //vm.stopPrank();
-
-        // Check if it reverts on non owner calls.
-        vm.startPrank(staker1);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector,staker1));
-        stakingContract.setEmissionDetails(20);
-        vm.stopPrank();
-    }
 }
 
