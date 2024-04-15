@@ -79,10 +79,10 @@ ETHERSCAN_API_KEY=
 
 3. Deploy the test token:
 (Note that `deployer` is the name of the account you added with the cast tools earlier)
-`forge create ./src/BasicToken.sol:BasicToken --account deployer`
+`forge create ./src/BasicToken.sol:BasicToken --account $USER`
 
 4. Deploy the staking contract:
-`forge create src/StakingContract.sol:StakingContract --constructor-args  0xDb11a3650F35eF1079AC7F15be6cD1ef88B5Ae3A 1000000000000000000 1711202960 259200 --account deployer`
+`forge create src/StakingContract.sol:StakingContract --constructor-args  $TOKENADDRESS 1000000000000000000 1711202960 259200 --account $USER`
 
 5. Verify the contract:
-`forge verify-contract --chain-id 11155111 --watch  0x936de2d1022Ce478d910363Da3C0E80B7F5552A3 ./src/StakingContract.sol:StakingContract --constructor-args $(cast abi-encode "constructor(token,uint256,uint256,uint256)" 0xDb11a3650F35eF1079AC7F15be6cD1ef88B5Ae3A 1000000000000000000 1711202960 259200)`
+`forge verify-contract --chain-id 11155111 --watch  $TOKENADDRESS ./src/StakingContract.sol:StakingContract --constructor-args $(cast abi-encode "constructor(token,uint256,uint256,uint256)" $DEPLOYEDADDRESS 1000000000000000000 1711202960 259200)`
